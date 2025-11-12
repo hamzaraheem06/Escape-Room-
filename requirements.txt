@@ -1,0 +1,21 @@
+# AI Escape Room - Requirements
+
+# Python Version: 3.7+
+
+# Core Game (Terminal Version)
+# No external dependencies required - uses Python standard library only
+
+# GUI Version (Pygame)
+pygame>=2.0.0
+
+# Standard library modules used:
+# - random (environment generation, puzzle generation)
+# - typing (type hints)
+# - collections (deque for BFS)
+# - heapq (priority queue for A*)
+# - sys (test suite exit codes)
+# - math (room positioning calculations)
+
+# Optional (for data visualization):
+# matplotlib>=3.5.0
+# numpy>=1.21.0

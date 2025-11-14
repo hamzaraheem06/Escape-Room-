@@ -5,26 +5,22 @@ An intelligent, gamified simulation where an autonomous agent navigates a dynami
 ## 🤖 AI Techniques Integrated
 
 ### 1. **Search Algorithms** (Pathfinding & Planning)
-
 - **BFS (Breadth-First Search)**: Finds shortest path to goals
-- **A\* Search**: Optimal pathfinding with heuristics considering trap risks
+- **A* Search**: Optimal pathfinding with heuristics considering trap risks
 - Used for: Finding keys, planning escape routes, exploring the environment
 
 ### 2. **Constraint Satisfaction Problems (CSP)**
-
 - **Backtracking solver**: Solves puzzles to unlock doors
 - **Progressive difficulty**: Easy → Medium → Hard puzzles
 - Demonstrates: Variable assignment, domain constraints, and constraint propagation
 
 ### 3. **Adversarial Search (Minimax)**
-
 - **Minimax algorithm**: Guard AI that strategically pursues the player
 - **Depth-limited search**: Looks ahead multiple moves
 - **Alpha-Beta pruning** ready for optimization
 - Demonstrates: Zero-sum game theory, optimal adversarial strategy
 
 ### 4. **Bayesian Reasoning**
-
 - **Belief updating**: Agent maintains probabilistic beliefs about trap locations
 - **Bayes' theorem**: Updates beliefs based on observations
 - **Risk assessment**: Evaluates path safety using probability distributions
@@ -58,7 +54,6 @@ An intelligent, gamified simulation where an autonomous agent navigates a dynami
 ## 🚀 Quick Start
 
 ### Prerequisites
-
 - Python 3.7 or higher
 - **Terminal version**: No dependencies (uses Python standard library)
 - **GUI version**: Requires pygame (`pip install pygame`)
@@ -70,7 +65,6 @@ python launcher.py
 ```
 
 Choose from:
-
 1. Terminal Version (text-based)
 2. GUI Version (visual Pygame interface)
 3. Quick Demo
@@ -79,13 +73,11 @@ Choose from:
 ### Running Directly
 
 **Terminal Version:**
-
 ```bash
 python game.py
 ```
 
 **GUI Version (Visual):**
-
 ```bash
 # Install pygame first
 pip install pygame
@@ -95,7 +87,6 @@ python gui_pygame.py
 ```
 
 **Quick Demo:**
-
 ```bash
 python quick_demo.py
 ```
@@ -159,7 +150,7 @@ MAX_TURNS = 100
 
 ### Strategy Tips
 
-- Use A\* search to find efficient paths while avoiding risky rooms
+- Use A* search to find efficient paths while avoiding risky rooms
 - Update your beliefs about traps as you explore
 - Solve puzzles strategically to open new routes
 - Keep distance from the guard (check distances regularly)
@@ -176,7 +167,7 @@ The Pygame GUI provides a rich visual experience:
   - 🟢 Green = Low risk (< 30%)
   - 🟡 Yellow = Medium risk (30-60%)
   - 🔴 Red = High risk (> 60%)
-- **🔍 Path Visualization**: Yellow lines showing A\* search paths
+- **🔍 Path Visualization**: Yellow lines showing A* search paths
 - **📊 Live Statistics**: Health bars, key count, turn tracking
 - **🎮 Click Controls**: Interactive buttons for all actions
 - **📝 Event Log**: Scrolling log of all game events
@@ -191,7 +182,6 @@ The Pygame GUI provides a rich visual experience:
 - **Next Turn** - Process guard's move
 
 **Keyboard:**
-
 - **ESC** - Quit game
 - **R** - Restart (when game over)
 
@@ -213,26 +203,22 @@ For detailed GUI instructions, see <filepath>GUI_GUIDE.md</filepath>
 ## 📊 Technical Details
 
 ### Search Algorithms
-
 - **State space**: Agent location, keys collected, doors unlocked, guard position
 - **Actions**: Move, solve puzzle, wait
 - **Heuristics**: Distance to goal + trap risk probability
 
 ### CSP Formulation
-
 - **Variables**: Lock digits/symbols
 - **Domains**: Possible values (1-6 typically)
 - **Constraints**: Sum constraints, ordering, uniqueness, arithmetic
 
 ### Minimax Implementation
-
 - **Utility function**: Distance-based evaluation
 - **Depth-limited**: Configurable look-ahead depth
 - **Assumptions**: Both players act optimally
 - **Pruning ready**: Alpha-beta optimization available
 
 ### Bayesian Belief Updates
-
 - **Prior**: Initial uniform probability distribution
 - **Likelihood**: Observation reliability (configurable)
 - **Posterior**: Updated using Bayes' theorem
@@ -277,7 +263,6 @@ python test_components.py
 ```
 
 This tests:
-
 - Environment generation and connectivity
 - Search algorithm correctness
 - CSP solver accuracy
@@ -288,14 +273,12 @@ This tests:
 ## 📝 Implementation Notes
 
 ### Design Principles
-
 - **Modularity**: Each AI component is independent
 - **Extensibility**: Easy to add new features
 - **Configurability**: Adjust difficulty and behavior
 - **Testability**: Each module has standalone tests
 
 ### Code Organization
-
 - **Separation of concerns**: AI logic separate from game logic
 - **Type hints**: Modern Python typing for clarity
 - **Documentation**: Comprehensive docstrings
@@ -310,3 +293,21 @@ This project was built as an educational AI demonstration. Potential contributio
 - Performance optimizations
 - Machine learning integration
 - More sophisticated heuristics
+
+## 📄 License
+
+This project is intended for educational purposes.
+
+## 🙏 Acknowledgments
+
+Built to demonstrate practical applications of:
+- Classical AI search techniques
+- Constraint satisfaction solving
+- Game theory and adversarial search
+- Probabilistic reasoning under uncertainty
+
+---
+
+**Author**: MiniMax Agent  
+**Purpose**: AI Education & Research  
+**Techniques**: Search, CSP, Minimax, Bayesian Inference  

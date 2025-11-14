@@ -79,7 +79,11 @@ class Environment:
         self.start_room_id = 0
         self.rooms[0].name = "Entrance (START)"
         
-        self.exit_room_id = self.room_count - 1
+        # Randomize exit room (not always the last room)
+        # Exit room should be in the latter half of rooms but not start or first few
+        min_exit_id = max(3, self.room_count // 3)  # Not too early
+        max_exit_id = min(self.room_count - 1, self.room_count - 2)  # Not too late
+        self.exit_room_id = random.randint(min_exit_id, max_exit_id)
         self.rooms[self.exit_room_id].name = "Exit Door (ESCAPE)"
         self.rooms[self.exit_room_id].is_exit = True
         

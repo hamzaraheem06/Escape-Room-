@@ -6,7 +6,7 @@ class Config:
     """Game configuration parameters"""
     
     # Map Settings
-    MAP_SIZE = "large"  # Options: "small" (5-8 rooms), "medium" (10-15 rooms), "large" (20-30 rooms)
+    MAP_SIZE = "medium"  # Options: "small" (5-8 rooms), "medium" (10-15 rooms), "large" (20-30 rooms)
     
     # Room counts by size
     ROOM_COUNTS = {

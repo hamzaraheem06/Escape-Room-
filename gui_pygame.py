@@ -7,7 +7,6 @@ import pygame
 import sys
 import math
 from typing import Dict, List, Tuple, Optional
-import copy
 from config import Config
 from environment import Environment
 from agent import Agent
@@ -19,47 +18,52 @@ from ai_solver import AISolver
 # Initialize Pygame
 pygame.init()
 
-# Colors
+# Colors - Light theme with blue accents
 class Colors:
     # Base colors
     BLACK = (0, 0, 0)
     WHITE = (255, 255, 255)
     GRAY = (128, 128, 128)
-    LIGHT_GRAY = (200, 200, 200)
-    DARK_GRAY = (50, 50, 50)
+    LIGHT_GRAY = (240, 240, 240)
+    DARK_GRAY = (80, 80, 80)
     
-    # Game element colors
-    BACKGROUND = (20, 20, 30)
-    PANEL_BG = (30, 30, 45)
+    # Light theme colors
+    BACKGROUND = (250, 250, 255)  # Light blue-white
+    PANEL_BG = (245, 248, 255)    # Very light blue
     
-    # Room colors
-    ROOM_NORMAL = (60, 80, 100)
-    ROOM_VISITED = (80, 120, 150)
-    ROOM_CURRENT = (100, 200, 255)
-    ROOM_START = (50, 200, 50)
-    ROOM_EXIT = (255, 100, 50)
+    # Accent colors
+    PRIMARY_BLUE = (70, 130, 255)  # Steel blue
+    LIGHT_BLUE = (100, 150, 255)   # Lighter blue
+    DARK_BLUE = (50, 100, 200)     # Darker blue
+    
+    # Room colors (light theme)
+    ROOM_NORMAL = (200, 220, 240)  # Light blue-gray
+    ROOM_VISITED = (150, 190, 230)  # Light blue
+    ROOM_CURRENT = (70, 130, 255)   # Primary blue
+    ROOM_START = (144, 238, 144)   # Light green
+    ROOM_EXIT = (255, 140, 0)      # Orange
     
     # Entity colors
-    AGENT = (0, 255, 100)
-    GUARD = (255, 50, 50)
-    KEY = (255, 215, 0)
-    TRAP = (255, 0, 0)
+    AGENT = (34, 139, 38)          # Forest green
+    GUARD = (220, 50, 50)          # Crimson
+    KEY = (255, 215, 0)            # Gold
+    TRAP = (255, 69, 0)            # Red-orange
     
     # Path colors
-    PATH_COLOR = (255, 255, 100)
+    PATH_COLOR = (255, 215, 0)     # Gold
     
-    # Risk colors (for heatmap)
-    RISK_LOW = (100, 255, 100)
-    RISK_MEDIUM = (255, 200, 100)
-    RISK_HIGH = (255, 100, 100)
+    # Risk colors (for heatmap) - light theme friendly
+    RISK_LOW = (152, 251, 152)     # Pale green
+    RISK_MEDIUM = (255, 218, 185)  # Peach
+    RISK_HIGH = (255, 182, 193)    # Light pink
     
-    # UI colors
-    BUTTON_NORMAL = (70, 100, 130)
-    BUTTON_HOVER = (90, 130, 170)
-    BUTTON_ACTIVE = (110, 150, 200)
-    TEXT_COLOR = WHITE
-    HEALTH_BAR = (50, 255, 50)
-    HEALTH_BAR_BG = (100, 50, 50)
+    # UI colors - light theme
+    BUTTON_NORMAL = (70, 130, 255)     # Primary blue
+    BUTTON_HOVER = (100, 150, 255)     # Light blue
+    BUTTON_ACTIVE = (50, 100, 200)     # Dark blue
+    TEXT_COLOR = BLACK                 # Black text for light theme
+    HEALTH_BAR = (34, 139, 34)        # Forest green
+    HEALTH_BAR_BG = (220, 220, 220)   # Light gray
 
 
 class Button:
@@ -72,13 +76,39 @@ class Button:
         self.hovered = False
         
     def draw(self, surface: pygame.Surface, font: pygame.font.Font):
-        """Draw button"""
-        color = Colors.BUTTON_HOVER if self.hovered else Colors.BUTTON_NORMAL
-        pygame.draw.rect(surface, color, self.rect)
-        pygame.draw.rect(surface, Colors.WHITE, self.rect, 2)
+        """Draw button with shadow effect"""
+        # Draw shadow
+        shadow_rect = self.rect.copy()
+        shadow_rect.x += 2
+        shadow_rect.y += 2
+        pygame.draw.rect(surface, (150, 150, 150, 100), shadow_rect, border_radius=6)
         
+        # Choose color based on button type
+        if self.hovered:
+            color = Colors.BUTTON_HOVER
+        else:
+            color = Colors.BUTTON_NORMAL
+            
+        # Draw button with rounded corners
+        pygame.draw.rect(surface, color, self.rect, border_radius=6)
+        pygame.draw.rect(surface, Colors.PRIMARY_BLUE, self.rect, 2, border_radius=6)
+        
+        # Add subtle inner highlight
+        if not self.hovered:
+            inner_rect = self.rect.inflate(-4, -4)
+            pygame.draw.rect(surface, (255, 255, 255, 50), inner_rect, border_radius=4)
+        
+        # Draw text with subtle shadow
         text_surface = font.render(self.text, True, Colors.TEXT_COLOR)
         text_rect = text_surface.get_rect(center=self.rect.center)
+        
+        # Text shadow
+        shadow_text_rect = text_rect.copy()
+        shadow_text_rect.x += 1
+        shadow_text_rect.y += 1
+        shadow_surface = font.render(self.text, True, (150, 150, 150))
+        surface.blit(shadow_surface, shadow_text_rect)
+        
         surface.blit(text_surface, text_rect)
         
     def handle_event(self, event: pygame.event.Event) -> bool:
@@ -97,9 +127,6 @@ class EscapeRoomGUI:
     def __init__(self, config: Config = None):
         self.config = config or Config()
         
-        
-        
-        
         # Screen setup
         self.screen_width = 1400
         self.screen_height = 900
@@ -116,13 +143,6 @@ class EscapeRoomGUI:
         self.game_over = False
         self.victory = False
         self.paused = False
-
-        # AI solution tracking
-        self.showing_solution = False
-        self.ai_solution_steps = []
-        self.fullscreen = False
-        self.use_astar = True
-        
         
         # Visual elements
         self.clock = pygame.time.Clock()
@@ -132,17 +152,17 @@ class EscapeRoomGUI:
         self.font_large = pygame.font.Font(None, 36)
         self.font_medium = pygame.font.Font(None, 24)
         self.font_small = pygame.font.Font(None, 18)
-
-        # Room positions (will be calculated)
-        self.room_positions = {}   # <-- add this initialization
-
-        # UI elements list must exist before layout recalculation
+        
+        # Initialize room positions first
+        self.room_positions: Dict[int, Tuple[int, int]] = {}
+        
+        # UI elements
         self.buttons: List[Button] = []
-
-        # Layout (responsive) - calculate once
+        
+        # Layout (responsive) - after room_positions is initialized
         self._calculate_layout()
-
-        # UI element creation (uses controls_area set by _calculate_layout)
+        
+        # Create buttons after layout is calculated
         self._create_buttons()
         
         # Event log
@@ -155,6 +175,12 @@ class EscapeRoomGUI:
         # Animation
         self.animation_progress = 0
         self.animating = False
+        
+        # AI solution display
+        self.ai_solution_steps = []
+        self.showing_solution = False
+        self.fullscreen = False
+        self.use_astar = False  # Pathfinding method
         
         # Add welcome message
         self.add_log("Welcome to AI Escape Room!")
@@ -176,12 +202,18 @@ class EscapeRoomGUI:
             self.room_positions[room_id] = (x, y)
             
     def _create_buttons(self):
-        """Create control buttons"""
-        button_y = self.controls_area.y + 40
-        button_width = 200
-        button_height = 35
-        button_x = self.controls_area.x + 125
-        spacing = 45
+        """Create control buttons in two columns"""
+        self.buttons.clear()
+        
+        # Two-column layout
+        button_width = (self.controls_area.width - 50) // 2  # Account for gap and margins
+        button_height = 40
+        button_spacing = 50
+        
+        # Starting positions
+        left_x = self.controls_area.x + 20
+        right_x = left_x + button_width + 30
+        button_y_start = self.controls_area.y + 50
         
         buttons_data = [
             ("Auto Move", "auto_move"),
@@ -191,13 +223,30 @@ class EscapeRoomGUI:
             ("Next Turn", "next_turn"),
             ("🤖 AI Solver", "ai_solver"),
             ("⚡ AI Step", "ai_step"),
-            ("🔄 Reset", "reset_game"),
-            ("⛶ Fullscreen (F11)", "toggle_fullscreen"),
+            ("🔄 Reset Game", "reset_game"),
+            ("⛶ Fullscreen", "toggle_fullscreen"),
         ]
         
-        for i, (text, action) in enumerate(buttons_data):
+        # Split buttons into two columns
+        mid_point = len(buttons_data) // 2
+        left_column = buttons_data[:mid_point]
+        right_column = buttons_data[mid_point:]
+        
+        # Create left column buttons
+        for i, (text, action) in enumerate(left_column):
+            button_y = button_y_start + i * button_spacing
             button = Button(
-                button_x, button_y + i * spacing,
+                left_x, button_y,
+                button_width, button_height,
+                text, action
+            )
+            self.buttons.append(button)
+        
+        # Create right column buttons
+        for i, (text, action) in enumerate(right_column):
+            button_y = button_y_start + i * button_spacing
+            button = Button(
+                right_x, button_y,
                 button_width, button_height,
                 text, action
             )
@@ -244,17 +293,23 @@ class EscapeRoomGUI:
         
         surface = pygame.Surface((legend_width, legend_height), pygame.SRCALPHA)
         
-        # Background
-        pygame.draw.rect(surface, (40, 40, 60), (0, 0, legend_width, legend_height), border_radius=8)
-        pygame.draw.rect(surface, Colors.WHITE, (0, 0, legend_width, legend_height), 2, border_radius=8)
+        # Background - light theme with shadow
+        shadow_surface = pygame.Surface((legend_width, legend_height))
+        shadow_surface.fill((150, 150, 150))
+        
+        pygame.draw.rect(surface, (150, 150, 150), (2, 2, legend_width, legend_height), border_radius=8)
+        pygame.draw.rect(surface, Colors.PANEL_BG, (0, 0, legend_width, legend_height), border_radius=8)
+        pygame.draw.rect(surface, Colors.PRIMARY_BLUE, (0, 0, legend_width, legend_height), 2, border_radius=8)
         
         font = self.font_small
         
-        # Title
+        # Title with shadow
+        title_shadow = font.render("MAP LEGEND", True, (150, 150, 150))
+        surface.blit(title_shadow, (12, 10))
         title = font.render("MAP LEGEND", True, Colors.TEXT_COLOR)
         surface.blit(title, (10, 8))
         
-        # Legend items
+        # Legend items with improved styling
         items = [
             ("🟢", "Unvisited Room", Colors.ROOM_NORMAL),
             ("🔵", "Current Location", Colors.ROOM_CURRENT),
@@ -265,17 +320,18 @@ class EscapeRoomGUI:
         ]
         
         x_start = 15
-        y_start = 30
+        y_start = 35
         for i, (emoji, text, color) in enumerate(items):
             x = x_start + (i % 3) * 110
             y = y_start + (i // 3) * 25
             
-            # Draw color indicator
-            pygame.draw.circle(surface, color, (x, y), 6)
+            # Draw color indicator with border
+            pygame.draw.circle(surface, color, (x, y), 7)
+            pygame.draw.circle(surface, Colors.WHITE, (x, y), 7, 1)
             
-            # Draw text
+            # Draw text with subtle styling
             text_surface = font.render(f"{emoji} {text}", True, Colors.TEXT_COLOR)
-            surface.blit(text_surface, (x + 12, y - 8))
+            surface.blit(text_surface, (x + 12, y - 9))
             
         return surface
             
@@ -289,10 +345,11 @@ class EscapeRoomGUI:
         self.game_over = False
         self.victory = False
         self.showing_solution = False
-        self.ai_solution_steps.clear()
+        self.ai_solution_steps = []
         
         self.add_log("🔄 Game Reset!")
         self.add_log(f"Collect {self.env.total_keys} keys and reach the exit!")
+        self.add_log(f"Exit room is now Room {self.env.exit_room_id} (randomized)")
         
     def toggle_fullscreen(self):
         """Toggle fullscreen mode"""
@@ -484,12 +541,22 @@ class EscapeRoomGUI:
             surface.blit(text, text_rect)
             
     def draw_map(self, surface: pygame.Surface):
-        """Draw the entire map"""
-        # Draw map background
-        pygame.draw.rect(surface, Colors.PANEL_BG, self.map_area)
-        pygame.draw.rect(surface, Colors.WHITE, self.map_area, 2)
+        """Draw the entire map with shadow effect"""
+        # Draw shadow
+        shadow_rect = self.map_area.copy()
+        shadow_rect.x += 3
+        shadow_rect.y += 3
+        shadow_surface = pygame.Surface((shadow_rect.width, shadow_rect.height))
+        shadow_surface.fill((150, 150, 150))
+        surface.blit(shadow_surface, (shadow_rect.x, shadow_rect.y))
         
-        # Title
+        # Draw map background
+        pygame.draw.rect(surface, Colors.PANEL_BG, self.map_area, border_radius=8)
+        pygame.draw.rect(surface, Colors.PRIMARY_BLUE, self.map_area, 2, border_radius=8)
+        
+        # Title with shadow
+        title_shadow = self.font_large.render("Escape Room Map", True, (150, 150, 150))
+        surface.blit(title_shadow, (self.map_area.x + 12, self.map_area.y + 12))
         title = self.font_large.render("Escape Room Map", True, Colors.TEXT_COLOR)
         surface.blit(title, (self.map_area.x + 10, self.map_area.y + 10))
         
@@ -510,15 +577,26 @@ class EscapeRoomGUI:
         self.draw_agent(surface)
         
     def draw_stats(self, surface: pygame.Surface):
-        """Draw statistics panel"""
-        pygame.draw.rect(surface, Colors.PANEL_BG, self.stats_area)
-        pygame.draw.rect(surface, Colors.WHITE, self.stats_area, 2)
+        """Draw statistics panel with shadow effect"""
+        # Draw shadow
+        shadow_rect = self.stats_area.copy()
+        shadow_rect.x += 3
+        shadow_rect.y += 3
+        shadow_surface = pygame.Surface((shadow_rect.width, shadow_rect.height))
+        shadow_surface.fill((150, 150, 150))
+        surface.blit(shadow_surface, (shadow_rect.x, shadow_rect.y))
+        
+        # Draw panel background
+        pygame.draw.rect(surface, Colors.PANEL_BG, self.stats_area, border_radius=8)
+        pygame.draw.rect(surface, Colors.PRIMARY_BLUE, self.stats_area, 2, border_radius=8)
         
         x = self.stats_area.x + 15
         y = self.stats_area.y + 15
         line_height = 30
         
-        # Title
+        # Title with shadow
+        title_shadow = self.font_medium.render("Agent Status", True, (150, 150, 150))
+        surface.blit(title_shadow, (x + 2, y + 2))
         title = self.font_medium.render("Agent Status", True, Colors.TEXT_COLOR)
         surface.blit(title, (x, y))
         y += line_height + 10
@@ -543,26 +621,39 @@ class EscapeRoomGUI:
         bar_width = self.stats_area.width - 30
         bar_height = 25
         
-        # Background
-        pygame.draw.rect(surface, Colors.HEALTH_BAR_BG,
-                        (x, y, bar_width, bar_height))
+        # Background with shadow
+        bg_shadow_surface = pygame.Surface((bar_width, bar_height))
+        bg_shadow_surface.fill((120, 120, 120))
+        bg_shadow_rect = pygame.Rect(x + 2, y + 2, bar_width, bar_height)
+        surface.blit(bg_shadow_surface, bg_shadow_rect)
+        
+        pygame.draw.rect(surface, Colors.HEALTH_BAR_BG, (x, y, bar_width, bar_height), border_radius=4)
         
         # Health fill
         health_ratio = self.agent.health / self.config.AGENT_HEALTH
         fill_width = int(bar_width * health_ratio)
-        pygame.draw.rect(surface, Colors.HEALTH_BAR,
-                        (x, y, fill_width, bar_height))
+        pygame.draw.rect(surface, Colors.HEALTH_BAR, (x, y, fill_width, bar_height), border_radius=4)
         
         # Border
-        pygame.draw.rect(surface, Colors.WHITE,
-                        (x, y, bar_width, bar_height), 2)
+        pygame.draw.rect(surface, Colors.PRIMARY_BLUE, (x, y, bar_width, bar_height), 2, border_radius=4)
         
     def draw_controls(self, surface: pygame.Surface):
-        """Draw control panel"""
-        pygame.draw.rect(surface, Colors.PANEL_BG, self.controls_area)
-        pygame.draw.rect(surface, Colors.WHITE, self.controls_area, 2)
+        """Draw control panel with shadow effect"""
+        # Draw shadow
+        shadow_rect = self.controls_area.copy()
+        shadow_rect.x += 3
+        shadow_rect.y += 3
+        shadow_surface = pygame.Surface((shadow_rect.width, shadow_rect.height))
+        shadow_surface.fill((150, 150, 150))
+        surface.blit(shadow_surface, (shadow_rect.x, shadow_rect.y))
         
-        # Title
+        # Draw panel background
+        pygame.draw.rect(surface, Colors.PANEL_BG, self.controls_area, border_radius=8)
+        pygame.draw.rect(surface, Colors.PRIMARY_BLUE, self.controls_area, 2, border_radius=8)
+        
+        # Title with shadow
+        title_shadow = self.font_medium.render("Controls", True, (150, 150, 150))
+        surface.blit(title_shadow, (self.controls_area.x + 17, self.controls_area.y + 12))
         title = self.font_medium.render("Controls", True, Colors.TEXT_COLOR)
         surface.blit(title, (self.controls_area.x + 15, self.controls_area.y + 10))
         
@@ -571,11 +662,22 @@ class EscapeRoomGUI:
             button.draw(surface, self.font_small)
             
     def draw_log(self, surface: pygame.Surface):
-        """Draw event log"""
-        pygame.draw.rect(surface, Colors.PANEL_BG, self.log_area)
-        pygame.draw.rect(surface, Colors.WHITE, self.log_area, 2)
+        """Draw event log with shadow effect"""
+        # Draw shadow
+        shadow_rect = self.log_area.copy()
+        shadow_rect.x += 3
+        shadow_rect.y += 3
+        shadow_surface = pygame.Surface((shadow_rect.width, shadow_rect.height))
+        shadow_surface.fill((150, 150, 150))
+        surface.blit(shadow_surface, (shadow_rect.x, shadow_rect.y))
         
-        # Title
+        # Draw panel background
+        pygame.draw.rect(surface, Colors.PANEL_BG, self.log_area, border_radius=8)
+        pygame.draw.rect(surface, Colors.PRIMARY_BLUE, self.log_area, 2, border_radius=8)
+        
+        # Title with shadow
+        title_shadow = self.font_medium.render("Event Log", True, (150, 150, 150))
+        surface.blit(title_shadow, (self.log_area.x + 17, self.log_area.y + 12))
         title = self.font_medium.render("Event Log", True, Colors.TEXT_COLOR)
         surface.blit(title, (self.log_area.x + 15, self.log_area.y + 10))
         
@@ -585,7 +687,18 @@ class EscapeRoomGUI:
         line_height = 18
         
         for message in self.event_log[-10:]:
-            text = self.font_small.render(message[:60], True, Colors.TEXT_COLOR)
+            # Color code messages
+            color = Colors.TEXT_COLOR
+            if "VICTORY" in message or "🏆" in message:
+                color = Colors.ROOM_START
+            elif "AI" in message or "🤖" in message:
+                color = Colors.PRIMARY_BLUE
+            elif "ERROR" in message or "❌" in message:
+                color = Colors.GUARD
+            elif "KEY" in message or "🔑" in message:
+                color = Colors.KEY
+                
+            text = self.font_small.render(message[:60], True, color)
             surface.blit(text, (x, y))
             y += line_height
             
@@ -613,56 +726,133 @@ class EscapeRoomGUI:
         pygame.display.flip()
         
     def draw_ai_solution(self, surface: pygame.Surface):
-        """Draw AI solution steps overlay"""
-        # Create semi-transparent background
-        overlay_rect = pygame.Rect(self.map_area.x, self.map_area.y, self.map_area.width, 300)
-        overlay = pygame.Surface((overlay_rect.width, overlay_rect.height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 200))
+        """Draw AI solution steps overlay in a dedicated panel"""
+        # Create AI solution panel on the right side
+        panel_width = min(400, self.stats_area.width)
+        panel_height = min(500, self.screen_height - 200)
+        panel_x = self.controls_area.x
+        panel_y = 120  # Below legend
+        
+        # Create semi-transparent background with shadow effect
+        shadow_offset = 3
+        shadow_rect = pygame.Rect(panel_x + shadow_offset, panel_y + shadow_offset, panel_width, panel_height)
+        shadow_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+        shadow_surface.fill((0, 0, 0, 100))
+        
+        # Main panel
+        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+        panel_surface.fill((245, 248, 255, 240))  # Light blue with transparency
+        
+        # Draw border
+        pygame.draw.rect(panel_surface, Colors.PRIMARY_BLUE, (0, 0, panel_width, panel_height), 2, border_radius=8)
         
         # Draw close button
-        close_button = pygame.Rect(overlay_rect.width - 30, 10, 20, 20)
-        pygame.draw.rect(overlay, Colors.GUARD, close_button)
+        close_button = pygame.Rect(panel_width - 30, 10, 20, 20)
+        pygame.draw.rect(panel_surface, Colors.GUARD, close_button, border_radius=4)
         close_text = self.font_small.render("X", True, Colors.WHITE)
         close_rect = close_text.get_rect(center=close_button.center)
-        overlay.blit(close_text, close_rect)
+        panel_surface.blit(close_text, close_rect)
         
-        # Draw title
-        title = self.font_medium.render("AI SOLUTION STEPS", True, Colors.KEY)
-        overlay.blit(title, (10, 10))
+        # Draw title with shadow
+        title = self.font_medium.render("🤖 AI SOLUTION GUIDE", True, Colors.TEXT_COLOR)
+        title_shadow = self.font_medium.render("🤖 AI SOLUTION GUIDE", True, (150, 150, 150))
+        panel_surface.blit(title_shadow, (12, 35))
+        panel_surface.blit(title, (10, 33))
         
         # Draw solution steps
-        y_offset = 40
-        for step in self.ai_solution_steps[:8]:  # Show max 8 steps
-            step_text = self.font_small.render(step, True, Colors.TEXT_COLOR)
-            overlay.blit(step_text, (15, y_offset))
-            y_offset += 22
+        y_offset = 65
+        max_steps = min(15, len(self.ai_solution_steps))
+        
+        for i in range(max_steps):
+            step = self.ai_solution_steps[i]
             
-        surface.blit(overlay, (overlay_rect.x, overlay_rect.y))
+            # Choose color based on step type
+            if "VICTORY" in step or "🎉" in step:
+                color = Colors.ROOM_START
+            elif "GET KEY" in step or "🔑" in step:
+                color = Colors.KEY
+            elif "SOLVE PUZZLE" in step or "🧩" in step:
+                color = Colors.PRIMARY_BLUE
+            elif "STEP" in step:
+                color = Colors.TEXT_COLOR
+            else:
+                color = Colors.GRAY
+                
+            # Render step text
+            step_text = self.font_small.render(step, True, color)
+            panel_surface.blit(step_text, (15, y_offset))
+            y_offset += 20
+            
+            # Add separator for important sections
+            if "=" in step or "🏆" in step:
+                y_offset += 5
+                
+        # Draw everything with shadow
+        self.screen.blit(shadow_surface, (panel_x + shadow_offset, panel_y + shadow_offset))
+        self.screen.blit(panel_surface, (panel_x, panel_y))
         
     def draw_game_over(self):
-        """Draw game over screen"""
-        overlay = pygame.Surface((self.screen_width, self.screen_height))
-        overlay.set_alpha(200)
-        overlay.fill(Colors.BLACK)
+        """Draw game over screen with improved design"""
+        # Create semi-transparent overlay
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
         self.screen.blit(overlay, (0, 0))
         
+        # Create modal dialog
+        dialog_width = 400
+        dialog_height = 250
+        dialog_x = (self.screen_width - dialog_width) // 2
+        dialog_y = (self.screen_height - dialog_height) // 2
+        
+        # Dialog shadow
+        shadow_rect = pygame.Rect(dialog_x + 5, dialog_y + 5, dialog_width, dialog_height)
+        shadow_surface = pygame.Surface((dialog_width, dialog_height))
+        shadow_surface.fill((100, 100, 100))
+        self.screen.blit(shadow_surface, (shadow_rect.x, shadow_rect.y))
+        
+        # Dialog background
+        dialog_surface = pygame.Surface((dialog_width, dialog_height))
+        dialog_surface.fill(Colors.PANEL_BG)
+        pygame.draw.rect(dialog_surface, Colors.PRIMARY_BLUE, (0, 0, dialog_width, dialog_height), 3, border_radius=12)
+        
         if self.victory:
-            text = self.font_large.render("VICTORY!", True, Colors.KEY)
-            subtext = f"Escaped in {self.turn} turns!"
+            # Victory styling
+            title_color = Colors.ROOM_START
+            title_text = "🏆 VICTORY!"
+            subtext = f"Escaped with {len(self.agent.keys_collected)}/{self.env.total_keys} keys in {self.turn} turns!"
+            icon = "🎉"
         else:
-            text = self.font_large.render("GAME OVER", True, Colors.GUARD)
+            # Game over styling
+            title_color = Colors.GUARD
+            title_text = "💀 GAME OVER"
             subtext = f"Failed after {self.turn} turns"
+            icon = "😔"
             
-        text_rect = text.get_rect(center=(self.screen_width // 2, self.screen_height // 2 - 50))
-        self.screen.blit(text, text_rect)
+        # Draw title with shadow
+        title_shadow = self.font_large.render(title_text, True, (100, 100, 100))
+        title_rect = title_shadow.get_rect(center=(dialog_width // 2 + 2, 60 + 2))
+        dialog_surface.blit(title_shadow, title_rect)
         
+        title = self.font_large.render(title_text, True, title_color)
+        title_rect = title.get_rect(center=(dialog_width // 2, 60))
+        dialog_surface.blit(title, title_rect)
+        
+        # Draw icon
+        icon_surf = self.font_large.render(icon, True, title_color)
+        icon_rect = icon_surf.get_rect(center=(dialog_width // 2, 30))
+        dialog_surface.blit(icon_surf, icon_rect)
+        
+        # Draw subtext
         sub = self.font_medium.render(subtext, True, Colors.TEXT_COLOR)
-        sub_rect = sub.get_rect(center=(self.screen_width // 2, self.screen_height // 2 + 20))
-        self.screen.blit(sub, sub_rect)
+        sub_rect = sub.get_rect(center=(dialog_width // 2, 100))
+        dialog_surface.blit(sub, sub_rect)
         
-        restart = self.font_small.render("Press R to restart or ESC to quit", True, Colors.TEXT_COLOR)
-        restart_rect = restart.get_rect(center=(self.screen_width // 2, self.screen_height // 2 + 80))
-        self.screen.blit(restart, restart_rect)
+        # Draw restart instructions
+        restart = self.font_small.render("Press R to restart or ESC to quit", True, Colors.GRAY)
+        restart_rect = restart.get_rect(center=(dialog_width // 2, dialog_height - 40))
+        dialog_surface.blit(restart, restart_rect)
+        
+        self.screen.blit(dialog_surface, (dialog_x, dialog_y))
         
     def handle_button_click(self, action: str):
         """Handle button actions"""
@@ -758,7 +948,7 @@ class EscapeRoomGUI:
             self.add_log("No path to exit! Solve puzzles first.")
             
     def action_solve_puzzle(self):
-        """Solve puzzle in current room"""
+        """Solve puzzle in current room with visible puzzle"""
         current_room = self.env.get_room(self.agent.current_room)
         locked_neighbors = [(nid, locked) for nid, locked in current_room.neighbors if locked]
         
@@ -772,6 +962,9 @@ class EscapeRoomGUI:
         solver = CSPSolver(puzzle)
         solution = solver.solve()
         
+        # Show puzzle to user
+        self.show_puzzle_dialog(puzzle, solution)
+        
         if solution:
             # Unlock doors
             for neighbor_id, locked in locked_neighbors:
@@ -782,6 +975,87 @@ class EscapeRoomGUI:
             self.add_log(f"Puzzle solved! Doors unlocked.")
         else:
             self.add_log("Puzzle solving failed!")
+            
+    def show_puzzle_dialog(self, puzzle_data, solution):
+        """Display puzzle dialog to user"""
+        # Create puzzle overlay
+        dialog_width = 500
+        dialog_height = 400
+        dialog_x = (self.screen_width - dialog_width) // 2
+        dialog_y = (self.screen_height - dialog_height) // 2
+        
+        # Create dialog surface with shadow
+        shadow_offset = 5
+        shadow_rect = pygame.Rect(dialog_x + shadow_offset, dialog_y + shadow_offset, dialog_width, dialog_height)
+        shadow_surface = pygame.Surface((dialog_width, dialog_height), pygame.SRCALPHA)
+        shadow_surface.fill((0, 0, 0, 150))
+        
+        dialog_surface = pygame.Surface((dialog_width, dialog_height), pygame.SRCALPHA)
+        dialog_surface.fill((250, 250, 255, 250))  # Light blue background
+        
+        # Draw border
+        pygame.draw.rect(dialog_surface, Colors.PRIMARY_BLUE, (0, 0, dialog_width, dialog_height), 3, border_radius=10)
+        
+        # Draw title
+        title = self.font_large.render("🧩 PUZZLE SOLVING", True, Colors.TEXT_COLOR)
+        title_rect = title.get_rect(center=(dialog_width // 2, 30))
+        dialog_surface.blit(title, title_rect)
+        
+        # Draw puzzle description
+        y_pos = 70
+        puzzle_type = getattr(puzzle_data, 'difficulty', 'Logic Puzzle').capitalize()
+        puzzle_text = f"Puzzle Type: {puzzle_type}"
+        text1 = self.font_medium.render(puzzle_text, True, Colors.TEXT_COLOR)
+        dialog_surface.blit(text1, (20, y_pos))
+        y_pos += 30
+        
+        # Draw variables count
+        var_count = len(puzzle_data.variables)
+        var_text = f"Variables: {var_count}"
+        text2 = self.font_medium.render(var_text, True, Colors.TEXT_COLOR)
+        dialog_surface.blit(text2, (20, y_pos))
+        y_pos += 25
+            
+        # Draw constraints count
+        constraint_count = len(puzzle_data.constraints)
+        constraint_text = f"Constraints: {constraint_count}"
+        text3 = self.font_medium.render(constraint_text, True, Colors.TEXT_COLOR)
+        dialog_surface.blit(text3, (20, y_pos))
+        y_pos += 25
+            
+        y_pos += 20
+        
+        # Show solution
+        if solution:
+            solution_text = "✅ SOLUTION FOUND!"
+            solution_color = Colors.ROOM_START
+        else:
+            solution_text = "❌ NO SOLUTION"
+            solution_color = Colors.GUARD
+            
+        solution_surf = self.font_medium.render(solution_text, True, solution_color)
+        solution_rect = solution_surf.get_rect(center=(dialog_width // 2, y_pos))
+        dialog_surface.blit(solution_surf, solution_rect)
+        
+        # Draw close instruction
+        close_text = self.font_small.render("Click anywhere to close", True, Colors.GRAY)
+        close_rect = close_text.get_rect(center=(dialog_width // 2, dialog_height - 30))
+        dialog_surface.blit(close_text, close_rect)
+        
+        # Draw everything
+        self.screen.blit(shadow_surface, (dialog_x + shadow_offset, dialog_y + shadow_offset))
+        self.screen.blit(dialog_surface, (dialog_x, dialog_y))
+        pygame.display.flip()
+        
+        # Wait for user to click
+        waiting = True
+        while waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    waiting = False
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    waiting = False
+            self.clock.tick(60)
             
     def next_turn(self):
         """Process next turn"""
@@ -831,62 +1105,125 @@ class EscapeRoomGUI:
         self.add_log("🤖 Starting AI Solver...")
         self.add_log("⏳ Analyzing optimal path...")
         
-        # Store current state
-        original_env = Environment(self.config)
-        original_env.rooms = {r_id: copy.deepcopy(room) for r_id, room in self.env.rooms.items()}
-        original_env.total_keys = self.env.total_keys
-        original_env.start_room_id = self.env.start_room_id
-        original_env.exit_room_id = self.env.exit_room_id
-        
-        original_agent = Agent(original_env, self.config)
-        original_agent.current_room = self.agent.current_room
-        original_agent.keys_collected = set(self.agent.keys_collected)
-        original_agent.health = self.agent.health
-        original_agent.moves_made = self.agent.moves_made
-        original_agent.rooms_visited = set(self.agent.rooms_visited)
-        original_agent.belief_system = copy.deepcopy(self.agent.belief_system)
-        
-        # Create AI solver with clean environment
-        ai_solver = AISolver(config=self.config, verbose=False)
-        ai_solver.env = original_env
-        ai_solver.agent = original_agent
-        ai_solver.guard = Guard(original_env, self.config)
-        ai_solver.turn = 0
-        ai_solver.max_turns = self.config.MAX_TURNS
-        
-        # Run AI solver on clean state
-        success = ai_solver.solve_escape_room()
-        
-        if success:
-            self.add_log("🎉 AI Solver: Victory achieved!")
-            self.add_log(f"📊 Optimal solution: {ai_solver.turn} turns, {original_agent.health} health, {len(original_agent.keys_collected)} keys")
+        try:
+            # Store current state
+            original_env = Environment(self.config)
+            original_env.rooms = {r_id: room.copy() for r_id, room in self.env.rooms.items()}
+            original_env.total_keys = self.env.total_keys
+            original_env.start_room_id = self.env.start_room_id
+            original_env.exit_room_id = self.env.exit_room_id
             
-            # Show step-by-step solution based on actual room visits
-            self.show_ai_solution_path(ai_solver.env, original_agent)
+            original_agent = Agent(original_env, self.config)
+            original_agent.current_room = self.agent.current_room
+            original_agent.keys_collected = list(self.agent.keys_collected)
+            original_agent.health = self.agent.health
+            original_agent.moves_made = self.agent.moves_made
+            original_agent.rooms_visited = set(self.agent.rooms_visited)
+            original_agent.belief_system = self.agent.belief_system
             
-        else:
-            self.add_log("😔 AI Solver: Failed to escape")
+            # Create AI solver with clean environment
+            ai_solver = AISolver(config=self.config, verbose=False)
+            ai_solver.env = original_env
+            ai_solver.agent = original_agent
+            ai_solver.guard = Guard(original_env, self.config)
+            ai_solver.turn = 0
+            ai_solver.max_turns = self.config.MAX_TURNS
             
-        # Update GUI state with AI results (but don't reset current game)
-        self.add_log(f"📈 AI Results: {ai_solver.turn} turns, {original_agent.health} health, {len(original_agent.keys_collected)}/{original_env.total_keys} keys")
-        
+            # Run AI solver on clean state
+            success = ai_solver.solve_escape_room()
+            
+            if success:
+                self.add_log("🎉 AI Solver: Victory achieved!")
+                self.add_log(f"📊 Optimal solution: {ai_solver.turn} turns, {original_agent.health} health, {len(original_agent.keys_collected)} keys")
+                
+                # Show step-by-step solution based on actual room visits
+                self.show_ai_solution_path(ai_solver.env, original_agent)
+                
+            else:
+                self.add_log("😔 AI Solver: Failed to escape")
+                
+            # Update GUI state with AI results (but don't reset current game)
+            self.add_log(f"📈 AI Results: {ai_solver.turn} turns, {original_agent.health} health, {len(original_agent.keys_collected)}/{original_env.total_keys} keys")
+            
+        except Exception as e:
+            self.add_log(f"❌ AI Solver error: {str(e)}")
+            # Fallback: show basic solution path
+            self.show_basic_solution_path()
+            
         # Run AI on current game state
-        ai_solver_current = AISolver(config=self.config, verbose=False)
-        ai_solver_current.env = self.env
-        ai_solver_current.agent = self.agent
-        ai_solver_current.guard = self.guard
-        ai_solver_current.turn = self.turn
-        ai_solver_current.max_turns = self.config.MAX_TURNS
+        try:
+            ai_solver_current = AISolver(config=self.config, verbose=False)
+            ai_solver_current.env = self.env
+            ai_solver_current.agent = self.agent
+            ai_solver_current.guard = self.guard
+            ai_solver_current.turn = self.turn
+            ai_solver_current.max_turns = self.config.MAX_TURNS
+            
+            success_current = ai_solver_current.solve_escape_room()
+            self.turn = ai_solver_current.turn
+            self.game_over = ai_solver_current.game_over
+            self.victory = ai_solver_current.victory
+            
+            if success_current:
+                self.add_log("🏆 Applied AI solution to current game!")
+            else:
+                self.add_log("⚠️ AI couldn't solve current game state")
+                
+        except Exception as e:
+            self.add_log(f"⚠️ Current state AI error: {str(e)}")
+    
+    def show_basic_solution_path(self):
+        """Fallback basic solution path display"""
+        self.ai_solution_steps = []
+        self.ai_solution_steps.append("🎯 AI SOLUTION OVERVIEW:")
+        self.ai_solution_steps.append("-" * 30)
         
-        success_current = ai_solver_current.solve_escape_room()
-        self.turn = ai_solver_current.turn
-        self.game_over = ai_solver_current.game_over
-        self.victory = ai_solver_current.victory
+        # Basic path analysis
+        exit_room = self.env.exit_room_id
+        current_room = self.agent.current_room
+        path = self.agent.find_path(current_room, exit_room)
         
-        if success_current:
-            self.add_log("🏆 Applied AI solution to current game!")
+        if path:
+            self.ai_solution_steps.append(f"📍 Current: Room {current_room}")
+            self.ai_solution_steps.append(f"🏁 Target: Room {exit_room} (Exit)")
+            self.ai_solution_steps.append(f"🛤️ Path length: {len(path)-1} moves")
+            self.ai_solution_steps.append("")
+            self.ai_solution_steps.append("🔄 STEP-BY-STEP:")
+            
+            for i, room_id in enumerate(path):
+                if room_id == exit_room:
+                    self.ai_solution_steps.append(f"  Step {i+1}: 🎉 REACH EXIT - VICTORY!")
+                    break
+                elif room_id == current_room:
+                    self.ai_solution_steps.append(f"  Step {i+1}: ✅ You are here (Room {room_id})")
+                else:
+                    room = self.env.get_room(room_id)
+                    if room.has_key and room.key_id not in self.agent.keys_collected:
+                        self.ai_solution_steps.append(f"  Step {i+1}: 🔑 Get key in Room {room_id}")
+                    elif room.has_puzzle:
+                        self.ai_solution_steps.append(f"  Step {i+1}: 🧩 Solve puzzle in Room {room_id}")
+                    else:
+                        self.ai_solution_steps.append(f"  Step {i+1}: ➡️ Move to Room {room_id}")
         else:
-            self.add_log("⚠️ AI couldn't solve current game state")
+            self.ai_solution_steps.append("❌ No clear path to exit found")
+            self.ai_solution_steps.append("💡 Try: Solving puzzles to unlock doors")
+            
+        # Add recommendations
+        keys_needed = self.env.total_keys - len(self.agent.keys_collected)
+        if keys_needed > 0:
+            result = self.agent.find_nearest_key()
+            if result:
+                key_room, path_to_key = result
+                self.ai_solution_steps.append(f"")
+                self.ai_solution_steps.append("🎯 NEXT ACTION:")
+                self.ai_solution_steps.append(f"  • Head to Room {key_room} for next key")
+                self.ai_solution_steps.append(f"  • Path: {len(path_to_key)-1} moves")
+        else:
+            self.ai_solution_steps.append(f"")
+            self.ai_solution_steps.append("🎯 NEXT ACTION:")
+            self.ai_solution_steps.append(f"  • All keys collected! Go to Room {exit_room}")
+            
+        self.showing_solution = True
         
     def action_ai_step(self):
         """Execute one AI step"""
@@ -1012,8 +1349,10 @@ class EscapeRoomGUI:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 # Check if clicking AI solution close button
                 if self.showing_solution:
-                    close_button = pygame.Rect(self.map_area.x + self.map_area.width - 30, 
-                                             self.map_area.y + 10, 20, 20)
+                    panel_x = self.controls_area.x
+                    panel_y = 120
+                    panel_width = min(400, self.stats_area.width)
+                    close_button = pygame.Rect(panel_x + panel_width - 30, panel_y + 10, 20, 20)
                     if close_button.collidepoint(event.pos):
                         self.showing_solution = False
                         
@@ -1040,7 +1379,7 @@ class EscapeRoomGUI:
 def main():
     """Main entry point for GUI"""
     config = Config()
-    config.MAP_SIZE = "large"
+    config.MAP_SIZE = "medium"
     config.GUARD_ENABLED = True
     
     gui = EscapeRoomGUI(config)
